@@ -112,9 +112,9 @@ export const getRpcAuth = (rpcuser: string) => {
   const salt = cryptoJs.lib.WordArray.random(16);
   const passwordHmac = cryptoJs.HmacSHA256(rpcpassword, salt);
   return {
-    rpcuser,
-    rpcpassword,
-    rpcauth: `${rpcuser}:${salt}$${passwordHmac}`,
+    rpcuser: 'test',
+    rpcpassword: 'test',
+    rpcauth: '',
   };
 };
 

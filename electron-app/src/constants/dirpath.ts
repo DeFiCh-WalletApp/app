@@ -14,7 +14,7 @@ export const IS_PACKAGED =
   process.mainModule.filename.indexOf('app.asar') !== -1;
 
 export const HOME_PATH = app.getPath('home');
-export const APP_DIR = path.join(HOME_PATH, './.defi');
+export const APP_DIR = path.join(HOME_PATH, './.defi-test');
 export const CONFIG_FILE_NAME = path.join(APP_DIR, '/defi.conf');
 export const UI_CONFIG_FILE_NAME = path.join(APP_DIR, '/defi.ui.yaml');
 export const PID_FILE_NAME = path.join(APP_DIR, '/defi.pid');

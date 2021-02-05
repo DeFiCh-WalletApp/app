@@ -24,11 +24,11 @@ export default class UiConfig {
       }
 
       // check for default defi config paths
-      if (checkPathExists(CONFIG_FILE_NAME)) {
-        const defaultConfigData = this.getDefault(CONFIG_FILE_NAME);
-        const configData = this.saveUiConfig(defaultConfigData);
-        return configData;
-      }
+      // if (checkPathExists(CONFIG_FILE_NAME)) {
+      //   const defaultConfigData = this.getDefault(CONFIG_FILE_NAME);
+      //   const configData = this.saveUiConfig(defaultConfigData);
+      //   return configData;
+      // }
 
       // If default conf is not available
       const username = randomString({
@@ -43,7 +43,7 @@ export default class UiConfig {
         rpcuser,
         rpcpassword,
         rpcbind: DEFAULT_RPC_BIND,
-        rpcport: DEFAULT_RPC_PORT,
+        rpcport: 18554,
       };
       const defaultConfigData = ini.encode(defaultConfig);
       writeFile(CONFIG_FILE_NAME, defaultConfigData);

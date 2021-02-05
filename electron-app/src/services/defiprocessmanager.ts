@@ -56,39 +56,47 @@ export default class DefiProcessManager {
         deletePeersFile();
         deleteBlocksAndRevFiles();
       }
-      if (checkPathExists(PID_FILE_NAME)) {
-        try {
-          const pid = getFileData(PID_FILE_NAME);
-          const processLists: any = await getProcesses({
-            pid: parseInt(pid, 10),
-          });
-          if (processLists.length) {
-            const NODE_RUNNING = 'Node already running';
-            log.info(NODE_RUNNING);
-            if (event)
-              event.sender.send(
-                START_DEFI_CHAIN_REPLY,
-                responseMessage(true, {
-                  message: NODE_RUNNING,
-                  conf: this.getConfiguration(),
-                })
-              );
-            return responseMessage(true, { message: NODE_RUNNING });
-          }
-        } catch (error) {
-          log.error(error);
-        }
-      }
+      // if (checkPathExists(PID_FILE_NAME)) {
+      //   try {
+      //     const pid = getFileData(PID_FILE_NAME);
+      //     const processLists: any = await getProcesses({
+      //       pid: parseInt(pid, 10),
+      //     });
+      //     if (processLists.length) {
+      //       const NODE_RUNNING = 'Node already running';
+      //       log.info(NODE_RUNNING);
+      //       if (event)
+      //         event.sender.send(
+      //           START_DEFI_CHAIN_REPLY,
+      //           responseMessage(true, {
+      //             message: NODE_RUNNING,
+      //             conf: this.getConfiguration(),
+      //           })
+      //         );
+      //       return responseMessage(true, { message: NODE_RUNNING });
+      //     }
+      //   } catch (error) {
+      //     log.error(error);
+      //   }
+      // }
 
       const execPath = path.resolve(
         path.join(BINARY_FILE_PATH, BINARY_FILE_NAME)
       );
 
-      if (!checkPathExists(execPath)) {
-        throw new Error(`${execPath} file not available`);
-      }
+      // if (!checkPathExists(execPath)) {
+      //   throw new Error(`${execPath} file not available`);
+      // }
 
       let nodeStarted = false;
+      event.sender.send(
+        START_DEFI_CHAIN_REPLY,
+        responseMessage(true, {
+          message: 'Node started',
+          conf: this.getConfiguration(),
+        })
+      );
+      return;
       const child = spawn(execPath, configArray);
       log.info('Node start initiated');
 
