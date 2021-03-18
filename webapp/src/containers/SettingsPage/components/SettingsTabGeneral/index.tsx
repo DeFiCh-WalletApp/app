@@ -8,6 +8,7 @@ import { connect } from 'react-redux';
 
 import SettingsRowDropDown from '../SettingsRowDropDown';
 import { openGeneralReIndexModal } from '../../../PopOver/reducer';
+import { SettingsTabs } from '../SettingsTabHeader';
 
 interface SettingsTabGeneralProps {
   launchAtLogin: boolean;
@@ -15,6 +16,7 @@ interface SettingsTabGeneralProps {
   refreshUtxosAfterSaving: boolean;
   minimizedAtLaunch: boolean;
   pruneBlockStorage: boolean;
+  deletePeersAndBlocks: boolean;
   blockStorage: number;
   databaseCache: number;
   maximumAmount: number;
@@ -49,6 +51,7 @@ const SettingsTabGeneral = (props: SettingsTabGeneralProps) => {
     networkOptions,
     network,
     reindexAfterSaving,
+    deletePeersAndBlocks,
     refreshUtxosAfterSaving,
     handleDropDowns,
     openGeneralReIndexModal,
@@ -57,7 +60,7 @@ const SettingsTabGeneral = (props: SettingsTabGeneralProps) => {
   } = props;
 
   return (
-    <TabPane tabId='general'>
+    <TabPane tabId={SettingsTabs.general}>
       <section>
         <Form>
           <Row className='mb-5'>
@@ -97,6 +100,13 @@ const SettingsTabGeneral = (props: SettingsTabGeneralProps) => {
                 label={'reindexAfterSaving'}
                 field={reindexAfterSaving}
                 fieldName={'reindexAfterSaving'}
+              />
+              <SettingsRowToggle
+                handleToggles={handleToggles}
+                label={'deletePeersAndBlocks'}
+                field={deletePeersAndBlocks}
+                fieldName={'deletePeersAndBlocks'}
+                hideMinimized={!reindexAfterSaving}
               />
             </Col>
           </Row>

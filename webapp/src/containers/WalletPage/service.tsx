@@ -8,22 +8,28 @@ import {
   RECIEVE_CATEGORY_LABEL,
   SENT_CATEGORY_LABEL,
   TX_TYPES,
+  AMOUNT_SEPARATOR,
+  DFI_SYMBOL,
 } from '../../constants';
 import PersistentStore from '../../utils/persistentStore';
 import { I18n } from 'react-redux-i18n';
+import { IToken } from 'src/utils/interfaces';
+import cloneDeep from 'lodash/cloneDeep';
 import isEmpty from 'lodash/isEmpty';
 import orderBy from 'lodash/orderBy';
 import compact from 'lodash/compact';
+import { difference } from 'lodash';
 import {
   fetchAccountsDataWithPagination,
   fetchTokenDataWithPagination,
   getAddressAndAmountListForAccount,
-  getAddressForSymbol,
+  getHighestAmountAddressForSymbol,
   getBalanceForSymbol,
   getErrorMessage,
-  getHighestAmountAddressForSymbol,
-  handleAccountToAccountConversion,
+  handleFetchTokenBalanceList,
   hdWalletCheck,
+  getNetworkType,
+  getNetworkInfo,
 } from '../../utils/utility';
 import {
   getMixWordsObject,
@@ -31,6 +37,18 @@ import {
   getRandomWordObject,
 } from '../../utils/utility';
 import BigNumber from 'bignumber.js';
+import { getNetwork } from './saga';
+import { element } from 'prop-types';
+import { includes } from 'lodash';
+import {
+  ON_FILE_SELECT_REQUEST,
+  ON_WALLET_RESTORE_VIA_BACKUP,
+  ON_WRITE_CONFIG_REQUEST,
+  ON_FILE_EXIST_CHECK,
+} from '../../../../typings/ipcEvents';
+import { ipcRendererFunc } from '../../utils/isElectron';
+import { backupWallet, updateWalletMap } from '../../app/service';
+import { IPCResponseModel } from '@defi_types/common';
 
 const handleLocalStorageName = (networkName) => {
   if (networkName === BLOCKCHAIN_INFO_CHAIN_TEST) {
@@ -68,6 +86,93 @@ export const handelRemoveReceiveTxns = (id, networkName) => {
   return paymentData;
 };
 
+export const getInitialTokenInfo = () => {
+  return JSON.parse(PersistentStore.get('tokenInfo') || '{}');
+};
+
+export const handleAddToken = (tokenData) => {
+  const networkType = getNetworkType();
+  const initialData = getInitialTokenInfo();
+  const keyData = [...(initialData[networkType] || []), tokenData];
+  initialData[networkType] = keyData;
+  PersistentStore.set('tokenInfo', initialData);
+  return initialData[networkType];
+};
+
+export const handleRemoveToken = (tokenData) => {
+  const networkType = getNetworkType();
+  const initialData = getInitialTokenInfo();
+  const keyData = (initialData[networkType] || []).filter(
+    (data) => data.symbol !== tokenData.symbol
+  );
+  initialData[networkType] = keyData;
+  PersistentStore.set('tokenInfo', initialData);
+  return initialData[networkType];
+};
+
+export const handleCheckToken = (tokenData) => {
+  const initialTokenData = getWalletToken();
+  const data = initialTokenData.find(
+    (data) => data.symbol === tokenData.symbol
+  );
+  if (data) {
+    return !!Number(tokenData.amount);
+  }
+  return true;
+};
+
+export const getWalletToken = () => {
+  const networkType = getNetworkType();
+  const initialData = getInitialTokenInfo();
+  return initialData[networkType] || [];
+};
+
+export const updateWalletToken = (clone) => {
+  const allTokenArray = clone.map((token) => token.symbolKey);
+  if (allTokenArray.length !== [...new Set(allTokenArray)].length) {
+    const duplicateArray = allTokenArray.filter(
+      (value, index) => allTokenArray.indexOf(value) === index
+    );
+    const networkType = getNetworkType();
+    const initialData = getInitialTokenInfo();
+    const filteredData = initialData[networkType].filter(
+      (element) => !duplicateArray.includes(element.symbolKey)
+    );
+    initialData[networkType] = filteredData;
+    PersistentStore.set('tokenInfo', initialData);
+  }
+};
+
+export const getTokenForWalletDropDown = (totalTokenData, tokenData) => {
+  const existingTokenArray = totalTokenData.map((value) => value.symbolKey);
+  const filteredTokenMap = new Map<string, any>();
+  tokenData.forEach((value, key) => {
+    if (!existingTokenArray.includes(key)) {
+      filteredTokenMap.set(key, value);
+    }
+  });
+  return filteredTokenMap;
+};
+
+export const isWalletDropdown = (totalTokenData, tokenData) => {
+  const existingTokenArray = totalTokenData.map((value) => value.symbolKey);
+  let tokenDataArray: any[] = [];
+  tokenData.forEach((value) => {
+    tokenDataArray = [...tokenDataArray, value.symbolKey];
+  });
+  const differenceArray = difference(existingTokenArray, tokenData);
+  return differenceArray.length > 1;
+};
+
+export const getVerifiedTokens = (tokens, accountTokens) => {
+  const accountTokenSymbol = accountTokens.map((t) => t.symbolKey);
+  const verifiedTokens = cloneDeep<IToken[]>(tokens || []).filter((t) => {
+    t.amount = 0;
+    return t.isDAT && !t.isLPS && !accountTokenSymbol.includes(t.symbolKey);
+  });
+  return verifiedTokens;
+};
+
 export const handelFetchWalletTxns = async (
   pageNo: number,
   pageSize: number
@@ -97,37 +202,28 @@ export const handleSendData = async () => {
 
 export const handleFetchRegularDFI = async () => {
   const rpcClient = new RpcClient();
-  return rpcClient.getBalance();
+  const regularDFI = await rpcClient.getBalance();
+  return new BigNumber(regularDFI);
 };
 
 export const handleFetchAccountDFI = async () => {
   const accountTokens = await handleFetchAccounts();
-  const DFIToken = accountTokens.find((token) => token.hash === '0');
+  const DFIToken = accountTokens.find((token) => token.hash === DFI_SYMBOL);
   const tempDFI = DFIToken && DFIToken.amount;
   const accountDFI = tempDFI || 0;
-  return accountDFI;
+  return new BigNumber(accountDFI);
 };
 
 export const handleFetchWalletBalance = async () => {
   const regularDFI = await handleFetchRegularDFI();
   const accountDFI = await handleFetchAccountDFI();
-  return (regularDFI + accountDFI).toFixed(8);
+  return new BigNumber(regularDFI).plus(accountDFI).toFixed(8);
 };
 
 export const handleFetchPendingBalance = async (): Promise<number> => {
   const rpcClient = new RpcClient();
   return await rpcClient.getPendingBalance();
 };
-
-// export const isValidAddress = async (toAddress: string) => {
-//   const rpcClient = new RpcClient();
-//   try {
-//     return rpcClient.isValidAddress(toAddress);
-//   } catch (err) {
-//     log.error(`Got error in isValidAddress: ${err}`);
-//     return false;
-//   }
-// };
 
 export const getTransactionInfo = async (txId): Promise<any> => {
   const rpcClient = new RpcClient();
@@ -142,7 +238,7 @@ export const getTransactionInfo = async (txId): Promise<any> => {
 
 export const sendToAddress = async (
   toAddress: string,
-  amount: any,
+  amount: BigNumber,
   subtractfeefromamount: boolean = false
 ) => {
   const rpcClient = new RpcClient();
@@ -154,7 +250,7 @@ export const sendToAddress = async (
     subtractfeefromamount,
     utxoDFI: regularDFI,
   });
-  if (regularDFI >= amount) {
+  if (amount.lte(regularDFI)) {
     try {
       const data = await rpcClient.sendToAddress(
         toAddress,
@@ -165,8 +261,8 @@ export const sendToAddress = async (
       return data;
     } catch (err) {
       const errorMessage = getErrorMessage(err);
-      log.error(`Got error in sendToAddress: ${errorMessage}`);
-      throw new Error(`Got error in sendToAddress: ${errorMessage}`);
+      log.error(errorMessage);
+      throw new Error(errorMessage);
     }
   } else {
     try {
@@ -175,15 +271,15 @@ export const sendToAddress = async (
       const {
         address: fromAddress,
         amount: maxAmount,
-      } = await getAddressForSymbol('0', addressesList);
+      } = getHighestAmountAddressForSymbol(DFI_SYMBOL, addressesList);
       log.info({ address: fromAddress, maxAmount, accountBalance });
 
       //* Consolidate tokens to a single address
-      if (new BigNumber(amount).gt(maxAmount)) {
+      if (amount.gt(maxAmount)) {
         try {
           const txHash = await sendTokensToAddress(
             fromAddress,
-            `${new BigNumber(accountBalance).toFixed(8)}@DFI`
+            `${accountBalance.toFixed(8)}@DFI`
           );
           log.info({ accountBalance, sendTokenTxHash: txHash });
           await getTransactionInfo(txHash);
@@ -193,7 +289,7 @@ export const sendToAddress = async (
         }
       }
 
-      const balance = await getBalanceForSymbol(fromAddress, '0');
+      const balance = await getBalanceForSymbol(fromAddress, DFI_SYMBOL);
       log.info({ consolidateAccountBalance: balance });
 
       const hash = await rpcClient.accountToUtxos(
@@ -205,24 +301,24 @@ export const sendToAddress = async (
       await getTransactionInfo(hash);
       const regularDFIAfterTxFee = await handleFetchRegularDFI();
       log.info({ regularDFIAfterTxFee });
-      if (regularDFIAfterTxFee < amount) {
+      if (new BigNumber(regularDFIAfterTxFee).lt(amount)) {
         throw new Error('Insufficient DFI in account');
-      } else if (regularDFIAfterTxFee === amount) {
+      } else if (new BigNumber(regularDFIAfterTxFee).isEqualTo(amount)) {
         return await sendToAddress(toAddress, amount, true);
       } else {
         return await sendToAddress(toAddress, amount, false);
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      log.error(`Got error in sendToAddress: ${errorMessage}`);
-      throw new Error(`Got error in sendToAddress: ${errorMessage}`);
+      log.error(errorMessage);
+      throw new Error(errorMessage);
     }
   }
 };
 
 export const handleFallbackSendToken = async (
   sendAddress: string,
-  sendAmount: string,
+  sendAmount: BigNumber,
   hash: string
 ): Promise<string> => {
   try {
@@ -230,13 +326,13 @@ export const handleFallbackSendToken = async (
     const {
       address: fromAddress,
       amount: maxAmount,
-    } = await getHighestAmountAddressForSymbol(hash, sendAmount, addressesList);
-    if (new BigNumber(maxAmount).gt(sendAmount)) {
+    } = await getHighestAmountAddressForSymbol(hash, addressesList, sendAmount);
+    if (new BigNumber(maxAmount).gte(sendAmount)) {
       try {
         const txHash = await accountToAccount(
           fromAddress,
           sendAddress,
-          `${sendAmount}@${hash}`
+          `${sendAmount.toFixed(8)}@${hash}`
         );
         log.info({ handleFallbackSendToken: txHash });
         return txHash;
@@ -244,7 +340,7 @@ export const handleFallbackSendToken = async (
         const errorMessage = getErrorMessage(error);
         log.error(errorMessage, `handleFallbackSendToken`);
         throw new Error(
-          `Got error in handleFallbackSendToken: ${errorMessage}`
+          `Got error in accountToAccount - handleFallbackSendToken: ${errorMessage}`
         );
       }
     } else {
@@ -469,8 +565,10 @@ export const getListAccountHistory = (query: {
 export const prepareTxDataRows = (data: any[]) => {
   return data.map((item) => {
     const amounts = item.amounts.map((ele) => ({
-      value: new BigNumber(ele.slice(0, ele.indexOf('@'))).toFixed(),
-      symbolKey: ele.slice(ele.indexOf('@') + 1),
+      value: new BigNumber(
+        ele.slice(0, ele.indexOf(AMOUNT_SEPARATOR))
+      ).toFixed(),
+      symbolKey: ele.slice(ele.indexOf(AMOUNT_SEPARATOR) + 1),
     }));
     const { category, isValid } = validTrx(item);
     return {
@@ -516,10 +614,109 @@ export const handleRestartCriteria = async () => {
   const rpcClient = new RpcClient();
   const balance = await rpcClient.getBalance();
   const txCount = await rpcClient.getWalletTxnCount();
-  const tokenBalance = await rpcClient.getTokenBalances();
+  const tokenBalance = await handleFetchTokenBalanceList();
   return (
     new BigNumber(balance).gt(0) ||
     new BigNumber(txCount).gt(0) ||
     tokenBalance.length > 0
   );
+};
+
+export const startRestoreViaBackup = async (network: string) => {
+  try {
+    const ipcRenderer = ipcRendererFunc();
+    const resp = ipcRenderer.sendSync(ON_WALLET_RESTORE_VIA_BACKUP, network);
+    if (resp?.success && resp?.data) {
+      updateWalletMap(resp.data);
+    }
+    return resp;
+  } catch (error) {
+    log.error(error, 'handleRestoreWalletViaBackup');
+    return {
+      success: false,
+      message: error?.message,
+    };
+  }
+};
+
+export const checkRestoreRecentIfExisting = async (path: string) => {
+  try {
+    const ipcRenderer = ipcRendererFunc();
+    const resp = ipcRenderer.sendSync(ON_FILE_EXIST_CHECK, path);
+    if (!resp?.success) {
+      updateWalletMap(path, true);
+    }
+    return resp;
+  } catch (error) {
+    log.error(error, 'checkRestoreIfExisting');
+    return {
+      success: false,
+      message: error?.message,
+    };
+  }
+};
+
+export const startRestoreViaRecent = async (path: string, network: string) => {
+  try {
+    const ipcRenderer = ipcRendererFunc();
+    const resp = ipcRenderer.sendSync(ON_WRITE_CONFIG_REQUEST, path, network);
+    if (resp?.success) {
+      updateWalletMap(path);
+    }
+    return resp;
+  } catch (error) {
+    log.error(error, 'startRestoreViaRecent');
+    return {
+      success: false,
+      message: error?.message,
+    };
+  }
+};
+
+export const startBackupViaExitModal = async () => {
+  try {
+    const ipcRenderer = ipcRendererFunc();
+    const resp = ipcRenderer.sendSync(ON_FILE_SELECT_REQUEST);
+    if (resp?.success) {
+      await backupWallet(resp?.data?.paths);
+    }
+    return resp;
+  } catch (error) {
+    log.error(error, 'startRestoreViaRecent');
+    return {
+      success: false,
+      message: error?.message,
+    };
+  }
+};
+
+export const createNewWallet = async (
+  passphrase: string,
+  network: string
+): Promise<IPCResponseModel<string>> => {
+  try {
+    const ipcRenderer = ipcRendererFunc();
+    const resp = ipcRenderer.sendSync(ON_FILE_SELECT_REQUEST, false, true);
+    const walletDir = resp?.data?.paths;
+    const walletPath = resp?.data?.walletPath;
+    if (resp?.success && walletPath) {
+      const rpcClient = new RpcClient();
+      const createWalletResp = await rpcClient.createWallet(
+        walletDir,
+        passphrase
+      );
+      if (createWalletResp.warning == null || createWalletResp.warning == '') {
+        return startRestoreViaRecent(walletPath, network);
+      } else {
+        throw new Error(createWalletResp.warning);
+      }
+    }
+    return resp;
+  } catch (error) {
+    log.error(error, 'createNewWallet');
+    return {
+      success: false,
+      message: error?.message,
+    };
+  }
 };

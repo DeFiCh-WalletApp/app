@@ -31,11 +31,13 @@ import {
 } from './reducer';
 import {
   calculateLPFee,
-  conversionRatio,
+  conversionRatioDex,
   countDecimals,
+  getMaxNumberOfAmount,
   getNetworkType,
   getPageTitle,
   getTokenListForSwap,
+  selectedPoolPair,
 } from '../../utils/utility';
 import {
   SWAP,
@@ -44,8 +46,9 @@ import {
   WALLET_TOKENS_PATH,
   SWAP_PATH,
   IS_DEX_INTRO_SEEN,
-  LIQUIDITY_PATH,
   DEX_EXPLORER_BASE_LINK,
+  REFRESH_TESTPOOLSWAP_COUNTER,
+  PRICE_IMPACT_WARNING_FACTOR,
 } from '../../constants';
 import SwapTab from './components/SwapTab';
 import { BigNumber } from 'bignumber.js';
@@ -55,7 +58,7 @@ import PersistentStore from '../../utils/persistentStore';
 import Header from '../HeaderComponent';
 import openNewTab from '../../utils/openNewTab';
 import NumberMask from '../../components/NumberMask';
-import ViewOnChain from 'src/components/ViewOnChain';
+import ViewOnChain from '../../components/ViewOnChain';
 import { PaymentRequestModel } from '../WalletPage/components/ReceivePage/PaymentRequestList';
 
 interface SwapPageProps {
@@ -117,6 +120,7 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
     receiveAddress: '',
     receiveLabel: '',
   });
+  const [percentageChange, setPercentageChange] = useState<boolean>(false);
 
   const {
     poolPairList,
@@ -156,13 +160,25 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
     resetTestPoolSwapRequestFrom();
   }, []);
 
+  const [counter, setCounter] = useState(0);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setCounter(counter + 1);
+    }, REFRESH_TESTPOOLSWAP_COUNTER);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [counter]);
+
   useEffect(() => {
     isValidAmount() &&
       fromTestValue &&
       fetchTestPoolSwapRequestTo({
         formState,
       });
-  }, [formState.amount1, formState.hash1, formState.hash2]);
+  }, [formState.amount1, formState.hash1, formState.hash2, counter]);
 
   useEffect(() => {
     isValidAmount() &&
@@ -170,7 +186,7 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
       fetchTestPoolSwapRequestFrom({
         formState,
       });
-  }, [formState.amount2, formState.hash1, formState.hash2]);
+  }, [formState.amount2, formState.hash1, formState.hash2, counter]);
 
   const isValidAmount = () => {
     if (formState[`balance1`] && formState[`balance2`]) {
@@ -180,11 +196,39 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
     }
   };
 
+  const checkPercentageChange = () => {
+    setPercentageChange(false);
+    if (
+      isValid() &&
+      activeTab === SWAP &&
+      !isAmountInsufficient() &&
+      !isErrorTestPoolSwapTo &&
+      !isErrorTestPoolSwapFrom
+    ) {
+      let reserve;
+      const [poolPair, condition] = selectedPoolPair(formState, poolPairList);
+      if (condition) {
+        reserve = poolPair.reserveA;
+      } else {
+        reserve = poolPair.reserveB;
+      }
+      // Used factor for price change impact
+      const amount = new BigNumber(reserve).times(PRICE_IMPACT_WARNING_FACTOR);
+      const comparision = amount.isLessThanOrEqualTo(formState.amount1);
+      if (comparision) {
+        setPercentageChange(true);
+      } else {
+        setPercentageChange(false);
+      }
+    }
+  };
+
   useEffect(() => {
     setFormState({
       ...formState,
       amount1: testPoolSwapFrom || '-',
     });
+    checkPercentageChange();
   }, [testPoolSwapFrom]);
 
   useEffect(() => {
@@ -192,6 +236,7 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
       ...formState,
       amount2: testPoolSwapTo || '-',
     });
+    checkPercentageChange();
   }, [testPoolSwapTo]);
 
   useEffect(() => {
@@ -240,7 +285,7 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
       if (formState.hash1 === '0') {
         if (
           new BigNumber(e.target.value).lte(
-            Math.max(Number(formState.balance1) - 1, 0)
+            BigNumber.maximum(new BigNumber(formState.balance1).minus(1), 0)
           ) ||
           !e.target.value
         ) {
@@ -288,6 +333,21 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
     });
   };
 
+  const showErrorMessage = (swapToErr, swapFromErr) => {
+    if (percentageChange) {
+      return I18n.t('containers.swap.swapPage.priceImpactWarning', {
+        percentage: PRICE_IMPACT_WARNING_FACTOR * 100,
+      });
+    }
+    if (swapToErr) {
+      return swapToErr;
+    } else if (swapFromErr) {
+      return swapFromErr;
+    } else {
+      return I18n.t('containers.swap.swapPage.somethingWentWrong');
+    }
+  };
+
   const handleAddressDropdown = (data: any) => {
     setFormState({
       ...formState,
@@ -297,9 +357,11 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
   };
 
   const setMaxValue = (field: string, value: string) => {
+    setFromTestValue(true);
+    setToTestValue(false);
     setFormState({
       ...formState,
-      [field]: formState.hash1 === '0' ? Math.max(Number(value) - 1, 0) : value,
+      [field]: getMaxNumberOfAmount(value, formState.hash1),
       amount2: testPoolSwapTo,
     });
   };
@@ -379,8 +441,15 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
   const handleSwap = () => {
     setAllowCalls(true);
     setSwapStep('loading');
+    const swapState = {
+      ...formState,
+      receiveAddress:
+        formState.receiveAddress == '' || formState.receiveAddress == null
+          ? (paymentRequests ?? [])[0]?.address
+          : formState.receiveAddress,
+    };
     poolSwapRequest({
-      formState,
+      formState: swapState,
     });
   };
 
@@ -476,16 +545,14 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
                     </Col>
                     <Col className={`${styles.valueTxt}`}>
                       <NumberMask
-                        value={Number(
-                          conversionRatio(formState, poolPairList)
-                        ).toFixed(8)}
+                        value={conversionRatioDex(formState).toString()}
                       />
                       {` ${formState.symbol2} per ${formState.symbol1}`}
                       <br />
                       <NumberMask
-                        value={(
-                          1 / Number(conversionRatio(formState, poolPairList))
-                        ).toFixed(8)}
+                        value={new BigNumber(1)
+                          .div(conversionRatioDex(formState).toString())
+                          .toFixed(8)}
                       />
                       {` ${formState.symbol1} per ${formState.symbol2}`}
                     </Col>
@@ -616,7 +683,8 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
               <>
                 {!isAmountInsufficient() &&
                 !isErrorTestPoolSwapTo &&
-                !isErrorTestPoolSwapFrom ? (
+                !isErrorTestPoolSwapFrom &&
+                !percentageChange ? (
                   <Col className='col-auto'>
                     {isValid()
                       ? I18n.t('containers.swap.swapPage.readySwap')
@@ -625,7 +693,10 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
                 ) : (
                   <Col className='col-auto'>
                     <span className='text-danger'>
-                      {I18n.t('containers.swap.swapPage.somethingWentWrong')}
+                      {showErrorMessage(
+                        isErrorTestPoolSwapTo,
+                        isErrorTestPoolSwapFrom
+                      )}
                     </span>
                   </Col>
                 )}
@@ -638,7 +709,8 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
                     !isValid() ||
                     !!isErrorTestPoolSwapTo ||
                     !!isErrorTestPoolSwapFrom ||
-                    !formState.receiveAddress
+                    formState.receiveAddress == null ||
+                    formState.receiveAddress == ''
                   }
                   onClick={swapStepConfirm}
                 >
@@ -803,8 +875,8 @@ const SwapPage: React.FunctionComponent<SwapPageProps> = (
               </div>
             </div>
             <div className='d-flex align-items-center justify-content-center'>
-              <Button color='primary' to={LIQUIDITY_PATH} tag={RRNavLink}>
-                {I18n.t('containers.swap.addLiquidity.backToPool')}
+              <Button color='primary' to={SWAP_PATH} tag={RRNavLink}>
+                {I18n.t('containers.swap.swapPage.backToDEX')}
               </Button>
             </div>
           </div>

@@ -11,7 +11,7 @@ import {
 import {
   VERIFY_MNEMONIC_QUIZ_OPTIONS_PER_QUESTIONS_LIMIT,
   VERIFY_MNEMONIC_QUIZ_QUESTIONS_LIMIT,
-  WALLET_BASE_PATH,
+  WALLET_CREATE_PATH,
   WALLET_TOKENS_PATH,
 } from '../../../../../constants';
 import { Row, Col, Button } from 'reactstrap';
@@ -124,7 +124,7 @@ const VerifyMnemonic: React.FunctionComponent<VerifyMnemonicProps> = (
       </Helmet>
       <Header>
         <Button
-          to={WALLET_BASE_PATH}
+          to={WALLET_CREATE_PATH}
           tag={NavLink}
           color='link'
           className='header-bar-back'
@@ -152,7 +152,12 @@ const VerifyMnemonic: React.FunctionComponent<VerifyMnemonicProps> = (
           </div>
           <Row>
             {quiz.map((item, id) => (
-              <Col xs='12' md='6' className='my-3'>
+              <Col
+                key={item.wordNum + '_' + id}
+                xs='12'
+                md='6'
+                className='my-3'
+              >
                 <h5>
                   {I18n.t('containers.wallet.verifyMnemonicPage.wordQuestion', {
                     wordNum: item.wordNum,
@@ -161,7 +166,7 @@ const VerifyMnemonic: React.FunctionComponent<VerifyMnemonicProps> = (
                 <Row>
                   <Col xs='12'>
                     {item.options.map((word) => (
-                      <span className='mr-3'>
+                      <span key={item.wordNum + '_' + word} className='mr-3'>
                         <Button
                           color={
                             word === selected[item.wordNum]
@@ -246,6 +251,7 @@ const VerifyMnemonic: React.FunctionComponent<VerifyMnemonicProps> = (
                   <Button
                     color='link'
                     size='sm'
+                    className='footer-bar-back'
                     onClick={() => {
                       setIsWalletTabActive(!isWalletTabActive);
                     }}

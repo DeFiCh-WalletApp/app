@@ -39,12 +39,15 @@ export const DEBUG_LOG_FILE_PATH = path.join(
   BINARY_LOG_FILE_NAME
 );
 
-export const WALLET_DAT = 'wallet.dat';
-
 export const TESTNET_BASE_FOLDER = path.join(
   BASE_FILE_PATH,
   'testnet3',
   'wallets'
+);
+
+export const TESTNET_BASE_FOLDER_REINDEX = path.join(
+  BASE_FILE_PATH,
+  'testnet3'
 );
 
 export const REGTEST_BASE_FOLDER = path.join(
@@ -57,3 +60,8 @@ export const MAINNET_BASE_FOLDER =
   getPlatform() === 'linux'
     ? BASE_FILE_PATH
     : path.join(BASE_FILE_PATH, 'wallets');
+
+export const MAINNET_BASE_FOLDER_REINDEX = BASE_FILE_PATH;
+export const BLK_FILE = 'blk';
+export const REV_FILE = 'rev';
+export const WALLET_MAP_FILE = 'wallet_map.json';

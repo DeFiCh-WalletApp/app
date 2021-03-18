@@ -8,13 +8,17 @@ import {
   updateSettingsRequest,
   getSettingOptionsRequest,
 } from './reducer';
-import SettingsTabsHeader from './components/SettingsTabHeader';
+import SettingsTabsHeader, {
+  SettingsTabs,
+} from './components/SettingsTabHeader';
 import SettingsTabsFooter from './components/SettingsTabFooter';
 import { TabContent } from 'reactstrap';
 import SettingsTabGeneral from './components/SettingsTabGeneral';
 import SettingsTabDisplay from './components/SettingsTabDisplay';
 import usePrevious from '../../components/UsePrevious';
 import { getPageTitle } from '../../utils/utility';
+import SettingsTabSecurity from './components/SettingsTabSecurity';
+import { useLocation } from 'react-router-dom';
 
 interface SettingsPageProps {
   isFetching: boolean;
@@ -49,6 +53,8 @@ interface SettingsPageProps {
   updateSettings: (data: any) => void;
   changeLanguage: () => void;
   isRefreshUtxosModalOpen: boolean;
+  isWalletEncrypted: boolean;
+  isWalletCreatedFlag: boolean;
 }
 
 interface SettingsPageState {
@@ -58,7 +64,9 @@ interface SettingsPageState {
   network?: string;
   displayMode?: string;
   launchAtLogin?: boolean;
+  deletePeersAndBlocks?: boolean;
   minimizedAtLaunch?: boolean;
+  reindexAfterSaving?: boolean;
   pruneBlockStorage?: boolean;
   scriptVerificationThreads?: number;
   blockStorage?: number;
@@ -72,8 +80,12 @@ interface SettingsPageState {
 const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
   props: SettingsPageProps
 ) => {
+  const { search } = useLocation();
+  const urlParams = new URLSearchParams(search);
+  const tab = urlParams.get('tab');
+
   const [state, setState] = useState<SettingsPageState>({
-    activeTab: 'general',
+    activeTab: tab ?? SettingsTabs.general,
     ...props.appConfig,
     isUnsavedChanges: false,
   });
@@ -141,6 +153,9 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
   };
 
   const handeReindexToggle = () => {
+    setSettingsPageState({
+      deletePeersAndBlocks: false,
+    });
     setIsReindexAfterSaving(!reindexAfterSaving);
   };
 
@@ -185,6 +200,7 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
       'displayMode',
       'network',
       'launchAtLogin',
+      'deletePeersAndBlocks',
       'minimizedAtLaunch',
       'pruneBlockStorage',
       'scriptVerificationThreads',
@@ -218,6 +234,7 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
       displayMode,
       network,
       launchAtLogin,
+      deletePeersAndBlocks,
       minimizedAtLaunch,
       pruneBlockStorage,
       scriptVerificationThreads,
@@ -234,6 +251,7 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
       displayMode,
       network,
       launchAtLogin,
+      deletePeersAndBlocks,
       minimizedAtLaunch,
       pruneBlockStorage,
       scriptVerificationThreads,
@@ -252,6 +270,7 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
     activeTab,
     isUnsavedChanges,
     launchAtLogin,
+    deletePeersAndBlocks,
     minimizedAtLaunch,
     pruneBlockStorage,
     blockStorage,
@@ -271,7 +290,13 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
       <Helmet>
         <title>{getPageTitle(I18n.t('containers.settings.title'))}</title>
       </Helmet>
-      <SettingsTabsHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+      <SettingsTabsHeader
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        displaySecurityTab={
+          props.isWalletCreatedFlag && props.isWalletEncrypted
+        }
+      />
       <div className='content'>
         {/* NOTE: Do not remove, for future purpose */}
         {/* <SettingsTab
@@ -286,6 +311,7 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
         <TabContent activeTab={state.activeTab}>
           <SettingsTabGeneral
             launchAtLogin={launchAtLogin!}
+            deletePeersAndBlocks={deletePeersAndBlocks!}
             minimizedAtLaunch={minimizedAtLaunch!}
             pruneBlockStorage={pruneBlockStorage!}
             blockStorage={blockStorage!}
@@ -304,6 +330,9 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
             handeReindexToggle={handeReindexToggle}
             handeRefreshUtxosToggle={handeRefreshUtxosToggle}
           />
+          {props.isWalletCreatedFlag && props.isWalletEncrypted && (
+            <SettingsTabSecurity />
+          )}
           <SettingsTabDisplay
             language={language!}
             unit={unit!}
@@ -312,12 +341,14 @@ const SettingsPage: React.FunctionComponent<SettingsPageProps> = (
           />
         </TabContent>
       </div>
-      <SettingsTabsFooter
-        isUnsavedChanges={
-          isUnsavedChanges || reindexAfterSaving || refreshUtxosAfterSaving
-        }
-        saveChanges={saveChanges}
-      />
+      {state.activeTab !== SettingsTabs.security && (
+        <SettingsTabsFooter
+          isUnsavedChanges={
+            isUnsavedChanges || reindexAfterSaving || refreshUtxosAfterSaving
+          }
+          saveChanges={saveChanges}
+        />
+      )}
     </div>
   );
 };
@@ -331,6 +362,7 @@ const mapStateToProps = (state) => {
     isUpdated,
     isRefreshUtxosModalOpen,
   } = state.settings;
+  const { isWalletEncrypted, isWalletCreatedFlag } = state.wallet;
   const { isRestart } = state.popover;
   const { locale } = state.i18n;
   return {
@@ -342,6 +374,8 @@ const mapStateToProps = (state) => {
     locale,
     isRestart,
     isRefreshUtxosModalOpen,
+    isWalletEncrypted,
+    isWalletCreatedFlag,
   };
 };
 

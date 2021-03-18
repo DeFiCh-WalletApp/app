@@ -17,7 +17,7 @@ import {
   fetchInstantBalanceRequest,
   fetchInstantPendingBalanceRequest,
 } from './reducer';
-import { WALLET_TOKENS_PATH } from '../../constants';
+import { DFI_SYMBOL, WALLET_TOKENS_PATH } from '../../constants';
 import { startUpdateApp, openBackupWallet } from '../PopOver/reducer';
 import { WALLET_SEND_PATH, WALLET_RECEIVE_PATH } from '../../constants';
 import {
@@ -81,27 +81,28 @@ const WalletPage: React.FunctionComponent<WalletPageProps> = (
       </Helmet>
       <Header>
         <Button
-          to={`${WALLET_TOKENS_PATH}?value=${getAmountInSelectedUnit(
-            walletBalance,
-            unit
-          )}&unit=${unit}`}
+          to={`${WALLET_TOKENS_PATH}?value=${walletBalance}&unit=${unit}`}
           tag={RRNavLink}
           color='link'
           className='header-bar-back'
         >
           <MdArrowBack />
           <span className='d-lg-inline'>
-            {I18n.t('containers.wallet.walletPage.wallets')}
+            {I18n.t('containers.wallet.walletPage.balances')}
           </span>
         </Button>
         <div className={styles.titleWithIcon}>
           <TokenAvatar
             symbol={
-              tokenSymbol ? getSymbolKey(tokenSymbol, tokenHash || '0') : unit
+              tokenSymbol
+                ? getSymbolKey(tokenSymbol, tokenHash || DFI_SYMBOL)
+                : unit
             }
           />
           <h1>
-            {tokenSymbol ? getSymbolKey(tokenSymbol, tokenHash || '0') : unit}{' '}
+            {tokenSymbol
+              ? getSymbolKey(tokenSymbol, tokenHash || DFI_SYMBOL, isLPS)
+              : unit}{' '}
             {I18n.t('containers.wallet.walletPage.wallet')}
           </h1>
         </div>
@@ -158,14 +159,10 @@ const WalletPage: React.FunctionComponent<WalletPageProps> = (
             <Col>
               <StatCard
                 label={I18n.t('containers.wallet.walletPage.availableBalance')}
-                value={
-                  tokenAmount
-                    ? tokenAmount
-                    : getAmountInSelectedUnit(walletBalance, unit)
-                }
+                value={tokenAmount ? tokenAmount : walletBalance}
                 unit={
                   tokenSymbol
-                    ? getSymbolKey(tokenSymbol, tokenHash || '0')
+                    ? getSymbolKey(tokenSymbol, tokenHash || DFI_SYMBOL)
                     : unit
                 }
                 refreshFlag={refreshBalance}
@@ -190,7 +187,7 @@ const WalletPage: React.FunctionComponent<WalletPageProps> = (
                 value={getAmountInSelectedUnit(pendingBalance, unit)}
                 unit={
                   tokenSymbol
-                    ? getSymbolKey(tokenSymbol, tokenHash || '0')
+                    ? getSymbolKey(tokenSymbol, tokenHash || DFI_SYMBOL)
                     : unit
                 }
                 refreshFlag={pendingRefreshBalance}
@@ -211,7 +208,13 @@ const WalletPage: React.FunctionComponent<WalletPageProps> = (
             </Col> */}
           </Row>
         </section>
-        <WalletTxns tokenSymbol={tokenSymbol || ''} />
+        <WalletTxns
+          tokenSymbol={
+            tokenSymbol
+              ? getSymbolKey(tokenSymbol, tokenHash || DFI_SYMBOL, isLPS)
+              : unit
+          }
+        />
       </div>
     </div>
   );

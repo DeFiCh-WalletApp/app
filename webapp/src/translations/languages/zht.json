@@ -1,6 +1,8 @@
 {
   "components": {
-    "keyValueLi": { "copied": "複製成功！" },
+    "keyValueLi": {
+      "copied": "複製成功！"
+    },
     "syncStatus": {
       "synchronized": "已同步",
       "syncing": "同步中",
@@ -35,7 +37,8 @@
       "help": "支援",
       "settings": "設定",
       "console": "命令行界面",
-      "liquidity": "流動資金"
+      "liquidity": "流動資金",
+      "selectCreateRestore": "選擇，創建或還原錢包來訪問錢包功能"
     },
     "blockChainPage": {
       "blockChainPage": {
@@ -128,7 +131,16 @@
         "lockedInCollat​​eral": "鎖定抵押",
         "costPerMasterNode": "單主節點成本",
         "masternodeWorth": "主節點價值",
-        "searchBar": "探索主節點"
+        "searchBar": "探索主節點",
+        "mine": "Mine",
+        "all": "All",
+        "owner": "Owner",
+        "operator": "Operator",
+        "type": "Type",
+        "collateral": "Collateral",
+        "collateralsActive": "Collaterals active",
+        "collateralsInactive": "Collaterals inactive",
+        "dFIMinted": "DFI minted"
       },
       "masterNodesList": {
         "ownerAddress": "物主地址",
@@ -179,7 +191,10 @@
         "successText": "成功",
         "backToMasternodePage": "回返主節點"
       },
-      "masternodeTab": { "myMasternodes": "我的", "network": "網絡" }
+      "masternodeTab": {
+        "myMasternodes": "我的",
+        "network": "網絡"
+      }
     },
     "tokens": {
       "tokensPage": {
@@ -190,6 +205,7 @@
         "searchTokens": "探索代幣",
         "dat": "DAT",
         "dct": "DCT",
+        "remove": "刪除",
         "paginationRange": "%{total} 代幣之 %{from} – %{to}",
         "datLabels": {
           "type": "類型",
@@ -398,12 +414,16 @@
         "amountInsufficient": "金額不足",
         "txHash": "交易哈希",
         "somethingWentWrong": "出錯了",
+        "priceImpactWarning": "交易量超過流動資金池的％{percentage}。如果繼續進行交換，將會造成可觀的價格影響。",
         "preparingUTXO": "正在準備 UTXO",
         "UTXOPrepared": "UTXO 已準備好",
         "transferringTokens": "轉移代幣",
         "tokensTransferred": "代幣已轉移"
       },
-      "swapTab": { "from": "從", "to": "到" },
+      "swapTab": {
+        "from": "從",
+        "to": "到"
+      },
       "poolTab": {
         "yourLiquidity": "您的流動資金",
         "noLiquidity": "沒有流動資金。您是否要為流動資金池提流動供資金嗎？",
@@ -526,16 +546,22 @@
       "network": "網絡",
       "mainnet": "主網",
       "testnet": "測試網",
-      "regnet": "沙河測試網"
+      "regnet": "沙河測試網",
+      "deletePeersAndBlocks": "刪除對等節點與區塊數據"
     },
     "wallet": {
       "createOrRestoreWalletPage": {
         "title": "錢包 - 創建或恢復錢包",
         "createOrRestoreWallet": "創建或恢復錢包",
         "createANewWallet": "創建錢包",
-        "restoreWalletFromMnemonicSeed": "使用助記種子恢復錢包",
+        "restoreWalletFromMnemonicSeed": "從恢復種子還原錢包",
         "walletSyncNotice": "同步完成後您就能創建或恢復錢包",
-        "loading": "加載中…"
+        "loading": "加载中…",
+        "connectToALedger": "连接硬件钱包",
+        "hdWallet": "連接硬件錢包",
+        "mnemonicSeed": "助記詞",
+        "chooseRecentBackup": "或者選擇最近的備份",
+        "comingSoon": "即將來臨"
       },
       "createNewWalletPage": {
         "back": "回返",
@@ -574,7 +600,8 @@
         "restoreWalletGuideLine": "請輸入您助記種子的 24個字以恢復錢包。",
         "restoringWallet": "錢包恢復中",
         "restore": "恢復",
-        "backToWalletPage": "關閉"
+        "backToWalletPage": "關閉",
+        "importingWallet": "錢包導入中"
       },
       "sendPage": {
         "sendTitle": "發送",
@@ -666,7 +693,20 @@
         "loading": "加載中…",
         "category": "類別",
         "blockHeight": "區塊高度",
-        "amount": "數目"
+        "amount": "數目",
+        "exportData": "EXPORT DATA",
+        "exportWalletData": "Export wallet data",
+        "export": "EXPORT",
+        "maxBlockHeight": "Up to block height",
+        "blockHash": "Block hash",
+        "type": "Type",
+        "poolID": "Pool ID",
+        "amounts": "Amounts",
+        "limit": "Limit to last",
+        "max": "Max",
+        "transaction": "transactions",
+        "format": "Format",
+        "csv": "CSV"
       },
       "walletWalletsPage": {
         "walletWallets": "錢包",
@@ -709,7 +749,10 @@
           }
         ]
       },
-      "consoleResultPage": { "resultPage": "CLI 輸出", "back": "回返" }
+      "consoleResultPage": {
+        "resultPage": "CLI 輸出",
+        "back": "回返"
+      }
     }
   },
   "alerts": {
@@ -783,7 +826,12 @@
     "resetWalletDatNotice": "確定刷新錢包嗎？",
     "confirmResetWalletText": "請把 ‘%{text}’ 輸入在文本域裡，以確定刷新。",
     "yeResetpWalletNotice": "是的",
-    "noResetWalletNotice": "否定"
+    "noResetWalletNotice": "否定",
+    "restoreYourWallet": "從以下備份中還原您的錢包?",
+    "exitBackupWarning": "現在退出將會從應用程序中刪除您的錢包。如果以後要添加此錢包，將需要助記詞。您要在退出之前備份您的錢包嗎?",
+    "backupAndExit": "備份並退出",
+    "exit": "退出",
+    "deletePeersAndBlocks": "Delete peers and blocks"
   },
   "general": {
     "defiApp": "DeFi 應用程式"
